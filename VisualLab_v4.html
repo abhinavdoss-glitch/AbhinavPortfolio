@@ -1,0 +1,759 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Visual Lab &mdash; Generative Art Engine</title>
+<link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;700;800&family=Syne:wght@700;800&display=swap" rel="stylesheet">
+<script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/loaders/OBJLoader.js"></script>
+<style>
+*,*::before,*::after{box-sizing:border-box;margin:0;padding:0;}
+:root{
+  --blue:#2563eb;--red:#ef4444;--yellow:#f59e0b;--green:#10b981;--purple:#8b5cf6;
+  --glass:rgba(255,255,255,0.68);--glass-b:rgba(255,255,255,0.88);
+  --text:#0f172a;--mid:#475569;--dim:#94a3b8;
+  --sw:310px;
+}
+html,body{height:100%;overflow:hidden;font-family:'Syne',sans-serif;color:var(--text);-webkit-user-select:none;user-select:none;}
+body{
+  background:
+    radial-gradient(ellipse 600px 500px at 5%  15%, rgba(96,165,250,0.42) 0%,transparent 70%),
+    radial-gradient(ellipse 500px 600px at 95% 5%,  rgba(167,139,250,0.37) 0%,transparent 70%),
+    radial-gradient(ellipse 700px 400px at 50% 95%, rgba(250,204,21,0.32)  0%,transparent 70%),
+    radial-gradient(ellipse 400px 500px at 85% 85%, rgba(251,113,133,0.32) 0%,transparent 70%),
+    radial-gradient(ellipse 400px 400px at 40% 50%, rgba(52,211,153,0.22)  0%,transparent 70%),
+    linear-gradient(135deg,#dbeafe 0%,#faf5ff 45%,#fce7f3 100%);
+}
+.glass{background:var(--glass);backdrop-filter:blur(28px) saturate(170%);-webkit-backdrop-filter:blur(28px) saturate(170%);border:1px solid var(--glass-b);box-shadow:0 8px 32px rgba(31,38,135,0.10);}
+.sb::-webkit-scrollbar{width:3px;}.sb::-webkit-scrollbar-thumb{background:rgba(37,99,235,0.2);border-radius:10px;}
+.cw{display:grid;grid-template-rows:1fr;transition:grid-template-rows 0.38s cubic-bezier(.4,0,.2,1);}.cw.closed{grid-template-rows:0fr;}.ci{overflow:hidden;}
+input[type=range]{-webkit-appearance:none;width:100%;height:4px;background:rgba(0,0,0,0.10);border-radius:4px;outline:none;cursor:pointer;}
+input[type=range]::-webkit-slider-thumb{-webkit-appearance:none;width:16px;height:16px;background:var(--blue);border:2.5px solid white;border-radius:50%;cursor:pointer;box-shadow:0 2px 8px rgba(37,99,235,0.4);transition:transform .15s;}
+input[type=range]::-webkit-slider-thumb:hover{transform:scale(1.25);}
+input[type=range].ry::-webkit-slider-thumb{background:var(--yellow);box-shadow:0 2px 8px rgba(245,158,11,0.4);}
+input[type=range].rr::-webkit-slider-thumb{background:var(--red);box-shadow:0 2px 8px rgba(239,68,68,0.4);}
+input[type=range].rp::-webkit-slider-thumb{background:var(--purple);box-shadow:0 2px 8px rgba(139,92,246,0.4);}
+input[type=range].rg::-webkit-slider-thumb{background:var(--green);box-shadow:0 2px 8px rgba(16,185,129,0.4);}
+.tog{position:relative;display:inline-block;width:38px;height:20px;flex-shrink:0;}.tog input{opacity:0;width:0;height:0;}
+.tt{position:absolute;cursor:pointer;inset:0;background:rgba(0,0,0,0.15);transition:.25s;border-radius:20px;}.tt::before{content:'';position:absolute;width:14px;height:14px;left:3px;top:3px;background:white;border-radius:50%;transition:.25s;box-shadow:0 1px 4px rgba(0,0,0,0.2);}
+input:checked+.tt{background:var(--blue);}input:checked+.tt::before{transform:translateX(18px);}
+.eb{display:flex;flex-direction:column;align-items:center;justify-content:center;padding:11px 6px 9px;gap:5px;background:rgba(255,255,255,0.55);border:1.5px solid rgba(255,255,255,0.8);border-radius:14px;cursor:pointer;transition:all .2s;font-family:'JetBrains Mono',monospace;font-size:7.5px;font-weight:700;letter-spacing:.08em;text-transform:uppercase;color:var(--mid);}
+.eb svg{width:17px;height:17px;fill:none;stroke:currentColor;stroke-width:2;stroke-linecap:round;stroke-linejoin:round;}
+.eb:hover{background:white;border-color:var(--blue);color:var(--blue);box-shadow:0 4px 16px rgba(37,99,235,.18);transform:translateY(-1px);}
+.eb.active{background:var(--blue);border-color:var(--blue);color:white;box-shadow:0 6px 20px rgba(37,99,235,.38);}.eb.active svg{stroke:white;}
+.sh{width:100%;padding:13px 18px;display:flex;align-items:center;justify-content:space-between;border:none;background:none;cursor:pointer;transition:background .2s;}
+.sh:hover{background:rgba(255,255,255,0.45);}
+.sh .sl{display:flex;align-items:center;gap:9px;font-family:'JetBrains Mono',monospace;font-size:9px;font-weight:700;letter-spacing:.2em;text-transform:uppercase;}
+.sh .sl svg,.sh .chev{fill:none;stroke:currentColor;stroke-width:2;stroke-linecap:round;stroke-linejoin:round;}
+.sh .sl svg{width:13px;height:13px;}.sh .chev{width:12px;height:12px;color:var(--dim);transition:transform .3s;flex-shrink:0;}.sh.open .chev{transform:rotate(180deg);}
+.sr{display:flex;flex-direction:column;gap:8px;}.slbl{display:flex;justify-content:space-between;align-items:center;font-family:'JetBrains Mono',monospace;font-size:8px;font-weight:700;letter-spacing:.12em;text-transform:uppercase;color:var(--mid);}
+.sv{padding:1px 7px;border-radius:5px;font-size:9px;font-weight:800;background:rgba(37,99,235,.12);color:var(--blue);}.sv.r{background:rgba(239,68,68,.12);color:var(--red);}.sv.y{background:rgba(245,158,11,.12);color:var(--yellow);}.sv.p{background:rgba(139,92,246,.12);color:var(--purple);}.sv.g{background:rgba(16,185,129,.12);color:var(--green);}
+.hb{display:flex;align-items:center;gap:6px;padding:6px 14px;border-radius:99px;background:rgba(255,255,255,0.65);border:1.5px solid rgba(255,255,255,0.85);font-family:'JetBrains Mono',monospace;font-size:8.5px;font-weight:700;letter-spacing:.08em;text-transform:uppercase;color:var(--mid);cursor:pointer;transition:all .2s;backdrop-filter:blur(8px);}
+.hb:hover{background:white;color:var(--text);box-shadow:0 4px 12px rgba(0,0,0,.12);}.hb.on{background:rgba(37,99,235,.12);border-color:var(--blue);color:var(--blue);}
+.hb svg,.xb svg{width:12px;height:12px;fill:none;stroke:currentColor;stroke-width:2;stroke-linecap:round;stroke-linejoin:round;flex-shrink:0;}
+.xb{display:flex;align-items:center;gap:6px;padding:7px 20px;border-radius:99px;border:none;background:var(--blue);font-family:'JetBrains Mono',monospace;font-size:8.5px;font-weight:800;letter-spacing:.1em;text-transform:uppercase;color:white;cursor:pointer;transition:all .2s;box-shadow:0 4px 16px rgba(37,99,235,.4);}
+.xb:hover{background:#1d4ed8;transform:translateY(-1px);box-shadow:0 8px 24px rgba(37,99,235,.5);}.xb svg{stroke:white;}
+.rb{display:flex;align-items:center;gap:5px;padding:5px 12px;border-radius:99px;background:rgba(255,255,255,0.65);border:1.5px solid rgba(255,255,255,0.85);font-family:'JetBrains Mono',monospace;font-size:7.5px;font-weight:700;letter-spacing:.08em;text-transform:uppercase;color:var(--mid);cursor:pointer;transition:all .2s;backdrop-filter:blur(8px);}
+.rb:hover{background:white;color:var(--text);box-shadow:0 3px 10px rgba(0,0,0,.1);}.rb svg{width:11px;height:11px;fill:none;stroke:currentColor;stroke-width:2;stroke-linecap:round;stroke-linejoin:round;}
+#cc{background:radial-gradient(rgba(37,99,235,.05) 1.5px,transparent 1.5px);background-size:30px 30px;}
+.ps{flex:1;min-width:0;height:32px;border-radius:8px;cursor:pointer;border:2px solid rgba(255,255,255,.9);box-shadow:0 2px 8px rgba(0,0,0,.1);transition:transform .15s,box-shadow .15s;padding:2px;background:white;}
+.ps:hover{transform:scaleY(1.15) translateY(-2px);box-shadow:0 5px 14px rgba(0,0,0,.2);}
+.cp{display:flex;flex-direction:column;gap:5px;}.cp label{font-family:'JetBrains Mono',monospace;font-size:7.5px;font-weight:700;letter-spacing:.12em;text-transform:uppercase;color:var(--dim);}
+.cp input[type=color]{width:100%;height:32px;border-radius:8px;cursor:pointer;border:2px solid rgba(255,255,255,.9);padding:2px 4px;background:white;box-shadow:0 2px 8px rgba(0,0,0,.1);}
+@keyframes blink{0%,100%{opacity:1;}50%{opacity:.3;}}.rdot{animation:blink 1s ease-in-out infinite;}
+canvas{image-rendering:pixelated;display:block;}
+.vb{padding:9px 6px;background:rgba(255,255,255,.6);border:1.5px solid rgba(255,255,255,.85);border-radius:10px;font-family:'JetBrains Mono',monospace;font-size:8px;font-weight:700;letter-spacing:.08em;text-transform:uppercase;color:var(--mid);cursor:pointer;transition:all .2s;}
+.vb:hover{border-color:var(--green);color:var(--green);}.vb.vactive{background:rgba(16,185,129,.12);border-color:var(--green);color:var(--green);}
+</style>
+</head>
+<body style="display:flex;flex-direction:column;height:100vh;">
+
+<!-- HEADER -->
+<header class="glass" style="height:54px;border-radius:0;border-left:none;border-right:none;border-top:none;display:flex;align-items:center;justify-content:space-between;padding:0 22px;flex-shrink:0;z-index:50;">
+  <div style="display:flex;align-items:center;gap:12px;">
+    <div style="width:36px;height:36px;border-radius:10px;background:linear-gradient(135deg,var(--blue),var(--purple));display:flex;align-items:center;justify-content:center;font-family:'Syne',sans-serif;font-weight:800;font-style:italic;font-size:18px;color:white;box-shadow:0 4px 16px rgba(37,99,235,.4);">V</div>
+    <div>
+      <div style="font-family:'Syne',sans-serif;font-weight:800;font-size:14px;letter-spacing:.12em;text-transform:uppercase;line-height:1;">Visual Lab <span style="color:var(--blue)">v4</span></div>
+      <div style="font-family:'JetBrains Mono',monospace;font-size:7px;color:var(--dim);letter-spacing:.3em;text-transform:uppercase;margin-top:2px;">Generative Art Engine</div>
+    </div>
+  </div>
+  <div style="display:flex;align-items:center;gap:10px;">
+    <button id="webcamBtn" class="hb"><svg viewBox="0 0 24 24"><polygon points="23 7 16 12 23 17 23 7"/><rect x="1" y="5" width="15" height="14" rx="2"/></svg><span id="wcLbl">Webcam</span></button>
+    <button id="recBtn" class="hb" style="color:var(--red);border-color:rgba(239,68,68,.35);"><svg viewBox="0 0 24 24" style="fill:var(--red);stroke:var(--red);"><circle cx="12" cy="12" r="6"/></svg><span id="recLbl">Record</span></button>
+    <button id="expBtn" class="xb"><svg viewBox="0 0 24 24"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>Export PNG</button>
+    <div id="recInd" style="display:none;align-items:center;gap:6px;padding:5px 12px;background:var(--red);border-radius:99px;font-family:'JetBrains Mono',monospace;font-size:8px;font-weight:800;letter-spacing:.1em;text-transform:uppercase;color:white;">
+      <span class="rdot" style="width:7px;height:7px;background:white;border-radius:50%;display:block;"></span>REC
+    </div>
+  </div>
+</header>
+
+<!-- BODY -->
+<div style="flex:1;display:flex;overflow:hidden;">
+
+<!-- SIDEBAR -->
+<aside class="glass sb" style="width:var(--sw);border-radius:0;border-top:none;border-left:none;border-bottom:none;overflow-y:auto;flex-shrink:0;">
+
+  <!-- DATA INPUT -->
+  <div style="border-bottom:1px solid rgba(0,0,0,.06);">
+    <button class="sh open" onclick="toggleSec('inp',this)">
+      <span class="sl" style="color:var(--blue);"><svg viewBox="0 0 24 24"><ellipse cx="12" cy="5" rx="9" ry="3"/><path d="M21 12c0 1.66-4 3-9 3s-9-1.34-9-3"/><path d="M3 5v14c0 1.66 4 3 9 3s9-1.34 9-3V5"/></svg>Data Input</span>
+      <svg class="chev" viewBox="0 0 24 24"><polyline points="6 9 12 15 18 9"/></svg>
+    </button>
+    <div id="inp-wrap" class="cw"><div class="ci">
+      <div style="padding:0 18px 18px;display:flex;flex-direction:column;gap:12px;">
+        <div id="dropZone" style="border:2px dashed rgba(37,99,235,.25);border-radius:18px;padding:20px 14px;display:flex;flex-direction:column;align-items:center;gap:8px;cursor:pointer;transition:all .2s;background:rgba(255,255,255,.45);">
+          <svg viewBox="0 0 24 24" style="width:24px;height:24px;fill:none;stroke:var(--blue);stroke-width:2;stroke-linecap:round;stroke-linejoin:round;"><polyline points="16 16 12 12 8 16"/><line x1="12" y1="12" x2="12" y2="21"/><path d="M20.39 18.39A5 5 0 0 0 18 9h-1.26A8 8 0 1 0 3 16.3"/></svg>
+          <span style="font-family:'JetBrains Mono',monospace;font-size:8px;font-weight:700;letter-spacing:.1em;text-transform:uppercase;color:var(--mid);text-align:center;line-height:1.7;">Click or Drop File<br><span style="color:var(--dim)">.obj &middot; .png &middot; .jpg</span></span>
+          <input type="file" id="fileInput" style="display:none;" accept=".obj,.png,.jpg,.jpeg,.gif,.webp">
+        </div>
+        <div style="display:flex;flex-direction:column;gap:7px;">
+          <label style="font-family:'JetBrains Mono',monospace;font-size:8px;font-weight:700;letter-spacing:.15em;text-transform:uppercase;color:var(--dim);">Word Cloud String</label>
+          <textarea id="txtSentence" style="width:100%;background:rgba(255,255,255,.75);border:1.5px solid rgba(255,255,255,.9);border-radius:10px;padding:10px 12px;font-family:'JetBrains Mono',monospace;font-size:9px;color:var(--text);height:68px;outline:none;resize:none;line-height:1.6;transition:border .2s;box-shadow:inset 0 2px 6px rgba(0,0,0,.06);"
+            onfocus="this.style.borderColor='var(--blue)'" onblur="this.style.borderColor='rgba(255,255,255,.9)'"
+            placeholder="Words for mapping...">THE VISUAL LAB ENGINE SYSTEM CORE EXPERIMENTAL 01</textarea>
+        </div>
+      </div>
+    </div></div>
+  </div>
+
+  <!-- EFFECT CORE -->
+  <div style="border-bottom:1px solid rgba(0,0,0,.06);">
+    <button class="sh open" onclick="toggleSec('eff',this)">
+      <span class="sl" style="color:var(--blue);"><svg viewBox="0 0 24 24"><rect x="2" y="2" width="20" height="20" rx="2"/><line x1="8" y1="2" x2="8" y2="22"/><line x1="2" y1="8" x2="8" y2="8"/><line x1="2" y1="14" x2="22" y2="14"/></svg>Effect Core</span>
+      <svg class="chev" viewBox="0 0 24 24"><polyline points="6 9 12 15 18 9"/></svg>
+    </button>
+    <div id="eff-wrap" class="cw"><div class="ci">
+      <div style="padding:0 18px 18px;display:flex;flex-direction:column;gap:16px;">
+
+        <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;">
+          <button class="eb" id="btn-ascii" onclick="setFx('ascii')"><svg viewBox="0 0 24 24"><polyline points="4 7 4 4 20 4 20 7"/><line x1="9" y1="20" x2="15" y2="20"/><line x1="12" y1="4" x2="12" y2="20"/></svg>ASCII</button>
+          <button class="eb" id="btn-sentence" onclick="setFx('sentence')"><svg viewBox="0 0 24 24"><line x1="17" y1="10" x2="3" y2="10"/><line x1="21" y1="6" x2="3" y2="6"/><line x1="21" y1="14" x2="3" y2="14"/><line x1="17" y1="18" x2="3" y2="18"/></svg>Word Cloud</button>
+          <button class="eb active" id="btn-halftone" onclick="setFx('halftone')"><svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="10"/><circle cx="12" cy="12" r="6"/><circle cx="12" cy="12" r="2"/></svg>Halftone</button>
+          <button class="eb" id="btn-dither" onclick="setFx('dither')"><svg viewBox="0 0 24 24"><rect x="3" y="3" width="7" height="7"/><rect x="14" y="3" width="7" height="7"/><rect x="14" y="14" width="7" height="7"/><rect x="3" y="14" width="7" height="7"/></svg>Dither</button>
+          <button class="eb" id="btn-popart" onclick="setFx('popart')"><svg viewBox="0 0 24 24"><polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"/></svg>Pop Art</button>
+          <button class="eb" id="btn-glitch" onclick="setFx('glitch')"><svg viewBox="0 0 24 24"><polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2"/></svg>Glitch</button>
+        </div>
+
+        <div style="display:flex;flex-direction:column;gap:12px;">
+          <div class="sr"><div class="slbl"><span>Density Grid</span><span class="sv" id="resV">12</span></div><input type="range" id="slRes" min="2" max="60" step="1" value="12"></div>
+          <div class="sr"><div class="slbl"><span>Glyph Scale</span><span class="sv" id="csV">0.90</span></div><input type="range" id="slCs" min="0.1" max="4.0" step="0.05" value="0.9"></div>
+        </div>
+
+        <!-- Image Adjustments -->
+        <div style="padding-top:14px;border-top:1px solid rgba(0,0,0,.07);display:flex;flex-direction:column;gap:12px;">
+          <div style="font-family:'JetBrains Mono',monospace;font-size:8px;font-weight:700;letter-spacing:.15em;text-transform:uppercase;color:var(--mid);">Image Adjustments</div>
+          <div class="sr"><div class="slbl"><span>Brightness</span><span class="sv y" id="brV">0</span></div><input type="range" class="ry" id="slBr" min="-128" max="128" step="1" value="0"></div>
+          <div class="sr"><div class="slbl"><span>Contrast</span><span class="sv r" id="coV">0</span></div><input type="range" class="rr" id="slCo" min="-128" max="128" step="1" value="0"></div>
+        </div>
+
+        <!-- Palette -->
+        <div style="padding-top:14px;border-top:1px solid rgba(0,0,0,.07);display:flex;flex-direction:column;gap:10px;">
+          <div style="display:flex;align-items:center;justify-content:space-between;">
+            <span style="font-family:'JetBrains Mono',monospace;font-size:8px;font-weight:700;letter-spacing:.15em;text-transform:uppercase;color:var(--mid);">Spectral Palette</span>
+            <div style="display:flex;gap:10px;align-items:center;">
+              <label style="display:flex;align-items:center;gap:5px;cursor:pointer;"><span style="font-family:'JetBrains Mono',monospace;font-size:7px;font-weight:700;color:var(--dim);">3-col</span><label class="tog"><input type="checkbox" id="t3"><span class="tt"></span></label></label>
+              <label style="display:flex;align-items:center;gap:5px;cursor:pointer;"><span style="font-family:'JetBrains Mono',monospace;font-size:7px;font-weight:700;color:var(--dim);">5-col</span><label class="tog"><input type="checkbox" id="t5" checked><span class="tt"></span></label></label>
+            </div>
+          </div>
+          <div id="palList" style="display:flex;gap:5px;align-items:stretch;"></div>
+          <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;">
+            <div class="cp"><label>Background</label><input type="color" id="bgPick" value="#ffffff"></div>
+            <div class="cp"><label>Master Ink</label><input type="color" id="inkPick" value="#000000"></div>
+          </div>
+        </div>
+
+      </div>
+    </div></div>
+  </div>
+
+  <!-- SCENE & MOTION -->
+  <div style="border-bottom:1px solid rgba(0,0,0,.06);">
+    <button class="sh open" onclick="toggleSec('scn',this)">
+      <span class="sl" style="color:var(--green);"><svg viewBox="0 0 24 24"><path d="M2 3h6a4 4 0 0 1 4 4v14a3 3 0 0 0-3-3H2z"/><path d="M22 3h-6a4 4 0 0 0-4 4v14a3 3 0 0 1 3-3h7z"/></svg>Scene &amp; Motion</span>
+      <svg class="chev" viewBox="0 0 24 24"><polyline points="6 9 12 15 18 9"/></svg>
+    </button>
+    <div id="scn-wrap" class="cw"><div class="ci">
+      <div style="padding:0 18px 18px;display:flex;flex-direction:column;gap:12px;">
+        <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;">
+          <button id="vbGallery" class="vb vactive" onclick="setCam('gallery')">Gallery View</button>
+          <button id="vbCanvas"  class="vb"          onclick="setCam('canvas')">Flat Canvas</button>
+        </div>
+        <div style="display:flex;justify-content:space-between;align-items:center;">
+          <span style="font-family:'JetBrains Mono',monospace;font-size:8px;font-weight:700;letter-spacing:.1em;text-transform:uppercase;color:var(--mid);">Observer Model</span>
+          <label class="tog"><input type="checkbox" id="obsToggle" checked><span class="tt"></span></label>
+        </div>
+        <div style="display:flex;justify-content:space-between;align-items:center;">
+          <span style="font-family:'JetBrains Mono',monospace;font-size:8px;font-weight:700;letter-spacing:.1em;text-transform:uppercase;color:var(--mid);">Auto Orbit</span>
+          <label class="tog"><input type="checkbox" id="orbToggle"><span class="tt"></span></label>
+        </div>
+        <div class="sr"><div class="slbl"><span>Orbit Speed</span><span class="sv g" id="orbV">1.0</span></div><input type="range" class="rg" id="slOrb" min="0" max="5" step="0.1" value="1.0"></div>
+      </div>
+    </div></div>
+  </div>
+
+  <!-- EXPERIMENTAL -->
+  <div style="border-bottom:1px solid rgba(0,0,0,.06);">
+    <button class="sh open" onclick="toggleSec('exp',this)">
+      <span class="sl" style="color:var(--purple);"><svg viewBox="0 0 24 24"><polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2"/></svg>Experimental</span>
+      <svg class="chev" viewBox="0 0 24 24"><polyline points="6 9 12 15 18 9"/></svg>
+    </button>
+    <div id="exp-wrap" class="cw"><div class="ci">
+      <div style="padding:0 18px 18px;display:flex;flex-direction:column;gap:12px;">
+        <div class="sr"><div class="slbl"><span>Ghost Trail Decay</span><span class="sv p" id="fbV">0.00</span></div><input type="range" class="rp" id="slFb" min="0" max="0.98" step="0.01" value="0"></div>
+        <div style="display:flex;justify-content:space-between;align-items:center;">
+          <span style="font-family:'JetBrains Mono',monospace;font-size:8px;font-weight:700;letter-spacing:.1em;text-transform:uppercase;color:var(--mid);">Chroma Isolation</span>
+          <label class="tog"><input type="checkbox" id="chromaToggle"><span class="tt"></span></label>
+        </div>
+      </div>
+    </div></div>
+  </div>
+
+</aside>
+
+<!-- MAIN VIEWPORT -->
+<main id="cc" style="flex:1;display:flex;align-items:center;justify-content:center;overflow:hidden;position:relative;">
+  <div style="position:relative;">
+
+    <div style="position:absolute;top:-46px;left:0;right:0;display:flex;align-items:center;justify-content:space-between;">
+      <div class="glass" style="border-radius:99px;padding:6px 16px;display:flex;align-items:center;gap:8px;">
+        <span style="width:7px;height:7px;background:var(--blue);border-radius:50%;display:block;box-shadow:0 0 8px var(--blue);animation:blink 2s ease-in-out infinite;"></span>
+        <span id="srcLabel" style="font-family:'JetBrains Mono',monospace;font-size:8px;font-weight:700;letter-spacing:.2em;text-transform:uppercase;color:var(--mid);">Output: 3D Active</span>
+      </div>
+      <button id="resetViewBtn" class="rb"><svg viewBox="0 0 24 24"><polyline points="1 4 1 10 7 10"/><path d="M3.51 15a9 9 0 1 0 .49-4.5"/></svg>Reset View</button>
+    </div>
+
+    <div class="glass" style="border-radius:20px;overflow:hidden;width:600px;height:600px;padding:0;box-shadow:0 40px 100px -20px rgba(31,38,135,.28),0 0 0 1px rgba(255,255,255,.95);">
+      <canvas id="HC" style="display:none;"></canvas>
+      <canvas id="AC" style="display:none;"></canvas>
+      <canvas id="OC" style="width:100%;height:100%;cursor:crosshair;"></canvas>
+    </div>
+
+    <div style="position:absolute;bottom:-34px;right:0;font-family:'JetBrains Mono',monospace;font-size:8px;font-weight:700;letter-spacing:.15em;color:var(--dim);text-transform:uppercase;">Drag to rotate &middot; Scroll to zoom</div>
+  </div>
+</main>
+
+</div>
+
+<video id="wcVid" style="display:none;" autoplay playsinline muted></video>
+
+<script>
+/* ───────────────────────────────────
+   STATE & CAMERA CONFIG
+─────────────────────────────────── */
+const S = {
+  fx:'halftone', res:12, cs:0.9, br:0, co:0,
+  asc:' .:*#',
+  sentence:'THE VISUAL LAB ENGINE SYSTEM CORE EXPERIMENTAL 01',
+  rotating:false, src:'3d',
+  ink:'#000000', bg:'#ffffff',
+  feedback:0, orbSpeed:1.0, chroma:false, loadedImage:null, imgAngle:0,
+  t:0, recording:false, obsVis:true,
+  use3:false, use5:true,
+  pal:['#ef4444','#f59e0b','#10b981','#2563eb','#8b5cf6'],
+  camMode:'gallery',
+};
+
+let scene, cam, renderer, model, imgMesh;
+let mRec, mChunks = [];
+
+const CAM_GALLERY = {pos:[0,0.5,7], look:[0,0,0]};
+const CAM_CANVAS  = {pos:[0,0,5],   look:[0,0,0]};
+
+const HC  = document.getElementById('HC');
+const AC  = document.getElementById('AC');
+const OC  = document.getElementById('OC');
+const ctx  = OC.getContext('2d', {alpha:false});
+const actx = AC.getContext('2d', {alpha:false});
+
+/* ───────────────────────────────────
+   INIT THREE.JS
+─────────────────────────────────── */
+function initThree(){
+  scene  = new THREE.Scene();
+  scene.background = new THREE.Color(0xffffff);
+  cam = new THREE.PerspectiveCamera(45, 1, 0.1, 1000);
+
+  renderer = new THREE.WebGLRenderer({canvas:HC, antialias:true, preserveDrawingBuffer:true});
+  renderer.setSize(600, 600);
+  renderer.shadowMap.enabled = true;
+
+  /* Lighting */
+  scene.add(new THREE.AmbientLight(0xffffff, 0.5));
+  const kl = new THREE.PointLight(0x60a5fa, 3.5); kl.position.set(4, 6, 8);   scene.add(kl);
+  const fl = new THREE.PointLight(0xf472b6, 2.0); fl.position.set(-5,-2, 5);  scene.add(fl);
+  const tl = new THREE.PointLight(0xfde68a, 1.5); tl.position.set(0, 9, 2);   scene.add(tl);
+  const bl = new THREE.PointLight(0x34d399, 1.0); bl.position.set(-4, 0,-3);  scene.add(bl);
+
+  /* Gallery geometry */
+  const wall = new THREE.Mesh(
+    new THREE.PlaneGeometry(16, 12),
+    new THREE.MeshStandardMaterial({color:0xf8fafc, roughness:0.9})
+  );
+  wall.position.set(0, 0, -3); scene.add(wall);
+
+  const flr = new THREE.Mesh(
+    new THREE.PlaneGeometry(20, 20),
+    new THREE.MeshStandardMaterial({color:0xf1f5f9, roughness:0.8})
+  );
+  flr.rotation.x = -Math.PI/2; flr.position.y = -3; scene.add(flr);
+
+  /* Default 3D sculpture */
+  model = new THREE.Mesh(
+    new THREE.TorusKnotGeometry(1.1, 0.4, 256, 48),
+    new THREE.MeshStandardMaterial({color:0xffffff, roughness:0.04, metalness:0.92})
+  );
+  model.position.set(0, 0, 0);
+  scene.add(model);
+
+  buildPalUI();
+  setCam('gallery');
+  setupInteraction();
+  mainLoop();
+}
+
+/* ───────────────────────────────────
+   INTERACTION
+─────────────────────────────────── */
+function setupInteraction(){
+  let drag = false, lx = 0, ly = 0;
+
+  OC.addEventListener('mousedown', e => { drag = true; lx = e.clientX; ly = e.clientY; OC.style.cursor = 'grabbing'; });
+  window.addEventListener('mouseup',   () => { drag = false; OC.style.cursor = 'crosshair'; });
+  window.addEventListener('mousemove', e => {
+    if(!drag) return;
+    const dx = e.clientX - lx, dy = e.clientY - ly;
+    if(S.src === 'image'){
+      S.imgAngle += dx * 0.01;
+    } else {
+      const tgt = (S.src === '3d') ? model : imgMesh;
+      if(tgt){ tgt.rotation.y += dx * 0.01; tgt.rotation.x += dy * 0.01; }
+    }
+    lx = e.clientX; ly = e.clientY;
+  });
+
+  OC.addEventListener('wheel', e => {
+    e.preventDefault();
+    const rect = OC.getBoundingClientRect();
+    const mx = (e.clientX - rect.left) / rect.width;
+    const my = (e.clientY - rect.top)  / rect.height;
+    const ndcX =  (mx - 0.5) * 2;
+    const ndcY = -(my - 0.5) * 2;
+
+    const zoomDelta = e.deltaY * 0.008;
+    const oldZ = cam.position.z;
+    const newZ = Math.max(2.5, Math.min(20, oldZ + zoomDelta));
+    const zoomFactor = newZ / oldZ;
+
+    const fovRad = cam.fov * Math.PI / 180;
+    const halfH  = Math.tan(fovRad / 2) * oldZ;
+    const halfW  = halfH * cam.aspect;
+
+    const worldX = ndcX * halfW;
+    const worldY = ndcY * halfH;
+
+    cam.position.x += worldX * (1 - zoomFactor);
+    cam.position.y += worldY * (1 - zoomFactor);
+    cam.position.z  = newZ;
+
+    cam.lookAt(cam.position.x, cam.position.y, 0);
+  }, { passive: false });
+
+  document.getElementById('resetViewBtn').onclick = () => resetView();
+}
+
+function resetView(){
+  const c = S.camMode === 'gallery' ? CAM_GALLERY : CAM_CANVAS;
+  cam.position.set(...c.pos);
+  cam.lookAt(...c.look);
+  if(S.src === 'image') S.imgAngle = 0;
+}
+
+/* ───────────────────────────────────
+   MAIN LOOP
+─────────────────────────────────── */
+function mainLoop(){
+  requestAnimationFrame(mainLoop);
+  S.t += 0.015;
+  if(S.src === '3d' && S.rotating && model){
+    model.rotation.y += 0.006 * S.orbSpeed;
+    model.rotation.z += 0.002 * S.orbSpeed;
+  }
+  renderer.render(scene, cam);
+  renderEffect();
+}
+
+/* ───────────────────────────────────
+   BRIGHTNESS / CONTRAST
+─────────────────────────────────── */
+function applyBC(id){
+  const d = id.data, b = S.br;
+  const f = (259*(S.co+255)) / (255*(259-S.co));
+  for(let i = 0; i < d.length; i += 4){
+    for(let c = 0; c < 3; c++){
+      let v = d[i+c] + b;
+      v = f * (v - 128) + 128;
+      d[i+c] = v < 0 ? 0 : v > 255 ? 255 : v|0;
+    }
+  }
+  return id;
+}
+
+/* ───────────────────────────────────
+   RENDER EFFECT ENGINE
+─────────────────────────────────── */
+function renderEffect(){
+  const W = 600, H = 600;
+
+  if(AC.width !== W){
+    AC.width = W; AC.height = H;
+    OC.width = W; OC.height = H;
+    actx.fillStyle = S.bg;
+    actx.fillRect(0, 0, W, H);
+    ctx.fillStyle = S.bg;
+    ctx.fillRect(0, 0, W, H);
+  }
+
+  actx.save();
+  if(S.src === 'image' && S.loadedImage){
+    if(S.feedback > 0){
+      actx.globalAlpha = 1 - S.feedback;
+      actx.fillStyle = S.bg;
+      actx.fillRect(0, 0, W, H);
+      actx.globalAlpha = 1.0;
+    } else {
+      actx.fillStyle = S.bg;
+      actx.fillRect(0, 0, W, H);
+    }
+    const img = S.loadedImage;
+    const aspect = img.naturalWidth / img.naturalHeight;
+    let dw, dh, dx, dy;
+    if(aspect >= 1){ dw = W; dh = W / aspect; }
+    else           { dh = H; dw = H * aspect; }
+    dx = (W - dw) / 2; dy = (H - dh) / 2;
+    actx.save();
+    actx.translate(W / 2, H / 2);
+    actx.rotate(S.imgAngle);
+    actx.drawImage(img, -dw / 2, -dh / 2, dw, dh);
+    actx.restore();
+  } else {
+    if(S.feedback > 0){
+      actx.globalAlpha = 1 - S.feedback;
+      actx.fillStyle = S.bg;
+      actx.fillRect(0, 0, W, H);
+      actx.globalAlpha = 1.0;
+    } else {
+      actx.globalAlpha = 1.0;
+      actx.fillStyle = S.bg;
+      actx.fillRect(0, 0, W, H);
+    }
+    actx.drawImage(HC, 0, 0, W, H);
+  }
+  actx.restore();
+
+  const res = S.res;
+  const bW  = Math.max(1, (W / res) | 0);
+  const bH  = Math.max(1, (H / res) | 0);
+  const off = document.createElement('canvas');
+  off.width = bW; off.height = bH;
+  const oc2 = off.getContext('2d');
+  oc2.drawImage(AC, 0, 0, bW, bH);
+
+  let id = oc2.getImageData(0, 0, bW, bH);
+  if(S.br !== 0 || S.co !== 0) id = applyBC(id);
+  const px = id.data;
+
+  let pal;
+  if     (S.use3) pal = S.pal.slice(0, 3);
+  else if(S.use5) pal = S.pal.slice();
+  else            pal = null;
+
+  ctx.fillStyle = S.bg;
+  ctx.fillRect(0, 0, W, H);
+
+  const sc  = S.sentence.split('');
+  let   si  = 0;
+
+  for(let y = 0; y < bH; y++){
+    for(let x = 0; x < bW; x++){
+      const i  = (y * bW + x) * 4;
+      const r  = px[i], g = px[i+1], b = px[i+2];
+      let   br = (r + g + b) / 765;
+
+      if(S.chroma && S.src === 'webcam' && g > r*1.3 && g > b*1.3) br = 0;
+
+      const dX = x * res + res / 2;
+      const dY = y * res + res / 2;
+
+      const palIdx = Math.min((br * (pal ? pal.length : 1)) | 0, (pal ? pal.length : 1) - 1);
+      const col = pal ? pal[palIdx] : S.ink;
+      ctx.fillStyle = col;
+
+      switch(S.fx){
+        case 'ascii':
+        case 'sentence': {
+          ctx.font         = 'bold ' + ((res * S.cs) | 0) + 'px "JetBrains Mono",monospace';
+          ctx.textAlign    = 'center';
+          ctx.textBaseline = 'middle';
+          let ch = ' ';
+          if(S.fx === 'sentence' && sc.length){
+            if(br > 0.08){ ch = sc[si % sc.length]; si++; }
+          } else {
+            ch = S.asc[(br * (S.asc.length - 1)) | 0];
+          }
+          if(ch !== ' ') ctx.fillText(ch, dX, dY);
+          break;
+        }
+        case 'halftone': {
+          const rad = (res / 2) * br * S.cs;
+          if(rad > 0.5){ ctx.beginPath(); ctx.arc(dX, dY, rad, 0, Math.PI*2); ctx.fill(); }
+          break;
+        }
+        case 'dither': {
+          const bayer = [[0,8,2,10],[12,4,14,6],[3,11,1,9],[15,7,13,5]];
+          if(br > bayer[y%4][x%4] / 16) ctx.fillRect(x*res, y*res, res, res);
+          break;
+        }
+        case 'popart': {
+          const p = pal || [S.ink];
+          ctx.fillStyle = p[Math.min((br * p.length) | 0, p.length - 1)];
+          ctx.fillRect(x*res, y*res, res, res);
+          break;
+        }
+        case 'glitch': {
+          if(br > 0.05){
+            const n  = Math.sin(S.t * 15 + y * 0.5) * 8;
+            const gx = Math.max(0, Math.min(bW-1, x + ((n) | 0)));
+            const gi = (y * bW + gx) * 4;
+            const gr = px[gi], gg = px[gi+1], gb = px[gi+2];
+            ctx.fillStyle = 'rgb('+gr+','+gg+','+gb+')';
+            ctx.fillRect(x*res, y*res, res, res);
+          }
+          break;
+        }
+      }
+    }
+  }
+}
+
+/* ───────────────────────────────────
+   UI HELPERS
+─────────────────────────────────── */
+function setFx(t){
+  S.fx = t;
+  document.querySelectorAll('.eb').forEach(b => b.classList.remove('active'));
+  const el = document.getElementById('btn-'+t);
+  if(el) el.classList.add('active');
+}
+
+function setCam(mode){
+  S.camMode = mode;
+  document.getElementById('vbGallery').classList.toggle('vactive', mode==='gallery');
+  document.getElementById('vbCanvas').classList.toggle('vactive',  mode==='canvas');
+  if(mode === 'gallery'){
+    cam.position.set(...CAM_GALLERY.pos);
+    cam.lookAt(...CAM_GALLERY.look);
+  } else {
+    cam.position.set(...CAM_CANVAS.pos);
+    cam.lookAt(...CAM_CANVAS.look);
+  }
+}
+
+function toggleSec(id, btn){
+  document.getElementById(id+'-wrap').classList.toggle('closed');
+  btn.classList.toggle('open');
+}
+
+function buildPalUI(){
+  const c = document.getElementById('palList');
+  c.innerHTML = '';
+  S.pal.forEach((col, i) => {
+    const p = document.createElement('input');
+    p.type = 'color'; p.value = col; p.className = 'ps';
+    p.oninput = e => { S.pal[i] = e.target.value; };
+    c.appendChild(p);
+  });
+}
+
+/* ───────────────────────────────────
+   CONTROL BINDINGS
+─────────────────────────────────── */
+document.getElementById('slRes').oninput = e => { S.res = +e.target.value; document.getElementById('resV').textContent = S.res; };
+document.getElementById('slCs').oninput  = e => { S.cs  = +e.target.value; document.getElementById('csV').textContent  = (+e.target.value).toFixed(2); };
+document.getElementById('slBr').oninput  = e => { S.br  = +e.target.value; document.getElementById('brV').textContent  = S.br; };
+document.getElementById('slCo').oninput  = e => { S.co  = +e.target.value; document.getElementById('coV').textContent  = S.co; };
+document.getElementById('slOrb').oninput = e => { S.orbSpeed = +e.target.value; document.getElementById('orbV').textContent = (+e.target.value).toFixed(1); };
+document.getElementById('slFb').oninput  = e => { S.feedback = +e.target.value; document.getElementById('fbV').textContent  = (+e.target.value).toFixed(2); };
+document.getElementById('orbToggle').onchange   = e => { S.rotating = e.target.checked; };
+document.getElementById('obsToggle').onchange   = e => { S.obsVis = e.target.checked; };
+document.getElementById('chromaToggle').onchange = e => { S.chroma = e.target.checked; };
+document.getElementById('bgPick').oninput  = e => {
+  S.bg = e.target.value;
+  if(scene) scene.background = new THREE.Color(e.target.value);
+  actx.fillStyle = S.bg;
+  actx.fillRect(0, 0, AC.width || 600, AC.height || 600);
+};
+document.getElementById('inkPick').oninput = e => { S.ink = e.target.value; };
+document.getElementById('txtSentence').oninput = e => { S.sentence = e.target.value; };
+document.getElementById('t3').onchange = e => { S.use3 = e.target.checked; if(e.target.checked){ document.getElementById('t5').checked = false; S.use5 = false; } };
+document.getElementById('t5').onchange = e => { S.use5 = e.target.checked; if(e.target.checked){ document.getElementById('t3').checked = false; S.use3 = false; } };
+
+/* ───────────────────────────────────
+   FILE UPLOAD
+─────────────────────────────────── */
+function loadImageFile(src){
+  const img = new Image();
+  img.onload = () => {
+    if(imgMesh){ scene.remove(imgMesh); imgMesh = null; }
+    if(model)   model.visible = false;
+    S.loadedImage = img;
+    S.src = 'image';
+    S.rotating = false;
+    S.imgAngle = 0;
+    const W = 600, H = 600;
+    if(AC.width !== W){ AC.width = W; AC.height = H; }
+    actx.clearRect(0, 0, W, H);
+    actx.fillStyle = S.bg;
+    actx.fillRect(0, 0, W, H);
+    const aspect = img.naturalWidth / img.naturalHeight;
+    let dw, dh, dx, dy;
+    if(aspect >= 1){ dw = W; dh = W / aspect; }
+    else           { dh = H; dw = H * aspect; }
+    dx = (W - dw) / 2; dy = (H - dh) / 2;
+    actx.drawImage(img, dx, dy, dw, dh);
+    setCam('canvas');
+    document.getElementById('srcLabel').textContent = 'Output: Image Asset';
+  };
+  img.src = src;
+}
+
+function loadOBJFile(text){
+  try{
+    const obj = new THREE.OBJLoader().parse(text);
+    if(model)   scene.remove(model);
+    if(imgMesh) scene.remove(imgMesh);
+    const box = new THREE.Box3().setFromObject(obj);
+    const ctr = box.getCenter(new THREE.Vector3());
+    obj.position.sub(ctr);
+    const size = box.getSize(new THREE.Vector3()).length();
+    obj.scale.setScalar(2.5 / size);
+    model = obj; scene.add(model); S.src = '3d';
+    document.getElementById('srcLabel').textContent = 'Output: OBJ Loaded';
+  } catch(e){ alert('OBJ parse error: ' + e.message); }
+}
+
+document.getElementById('dropZone').addEventListener('click', () => document.getElementById('fileInput').click());
+document.getElementById('fileInput').onchange = e => {
+  const file = e.target.files[0]; if(!file) return;
+  const reader = new FileReader();
+  if(file.name.toLowerCase().endsWith('.obj')){
+    reader.onload = ev => loadOBJFile(ev.target.result);
+    reader.readAsText(file);
+  } else {
+    reader.onload = ev => loadImageFile(ev.target.result);
+    reader.readAsDataURL(file);
+  }
+};
+
+['dragover','dragenter'].forEach(ev => document.getElementById('dropZone').addEventListener(ev, e => {
+  e.preventDefault();
+  document.getElementById('dropZone').style.borderColor = 'var(--blue)';
+  document.getElementById('dropZone').style.background  = 'rgba(37,99,235,.07)';
+}));
+['dragleave','drop'].forEach(ev => document.getElementById('dropZone').addEventListener(ev, e => {
+  e.preventDefault();
+  document.getElementById('dropZone').style.borderColor = 'rgba(37,99,235,.25)';
+  document.getElementById('dropZone').style.background  = 'rgba(255,255,255,.45)';
+}));
+document.getElementById('dropZone').addEventListener('drop', e => {
+  e.preventDefault();
+  const file = e.dataTransfer.files[0]; if(!file) return;
+  const reader = new FileReader();
+  if(file.name.toLowerCase().endsWith('.obj')){
+    reader.onload = ev => loadOBJFile(ev.target.result);
+    reader.readAsText(file);
+  } else {
+    reader.onload = ev => loadImageFile(ev.target.result);
+    reader.readAsDataURL(file);
+  }
+});
+
+/* ───────────────────────────────────
+   WEBCAM
+─────────────────────────────────── */
+document.getElementById('webcamBtn').onclick = async () => {
+  const vid = document.getElementById('wcVid');
+  const btn = document.getElementById('webcamBtn');
+
+  if(S.src === 'webcam'){
+    if(vid.srcObject) vid.srcObject.getTracks().forEach(t => t.stop());
+    if(imgMesh){ scene.remove(imgMesh); imgMesh = null; }
+    if(model){ model.visible = true; }
+    S.src = '3d'; S.loadedImage = null;
+    btn.classList.remove('on');
+    document.getElementById('wcLbl').textContent = 'Webcam';
+    document.getElementById('srcLabel').textContent = 'Output: 3D Active';
+    setCam('gallery');
+  } else {
+    try {
+      const stream = await navigator.mediaDevices.getUserMedia({video:{width:640,height:480}});
+      vid.srcObject = stream;
+      await new Promise(r => vid.onloadedmetadata = r);
+      vid.play();
+      if(imgMesh) scene.remove(imgMesh);
+      if(model)   model.visible = false;
+      const vtex = new THREE.VideoTexture(vid);
+      vtex.minFilter = THREE.LinearFilter;
+      vtex.magFilter = THREE.LinearFilter;
+      imgMesh = new THREE.Mesh(
+        new THREE.PlaneGeometry(3.5, 3.5 * (480/640)),
+        new THREE.MeshBasicMaterial({map: vtex, side: THREE.DoubleSide})
+      );
+      imgMesh.position.set(0, 0, 0);
+      scene.add(imgMesh);
+      S.src = 'webcam';
+      S.rotating = false;
+      setCam('canvas');
+      btn.classList.add('on');
+      document.getElementById('wcLbl').textContent = 'Stop Webcam';
+      document.getElementById('srcLabel').textContent = 'Output: Webcam Live';
+    } catch(e){ alert('Camera access denied.'); }
+  }
+};
+
+/* ───────────────────────────────────
+   RECORD & EXPORT
+─────────────────────────────────── */
+document.getElementById('recBtn').onclick = () => {
+  const lbl = document.getElementById('recLbl');
+  const ind = document.getElementById('recInd');
+  if(!S.recording){
+    mChunks = [];
+    const stream = OC.captureStream(30);
+    mRec = new MediaRecorder(stream, {mimeType:'video/webm'});
+    mRec.ondataavailable = e => { if(e.data.size > 0) mChunks.push(e.data); };
+    mRec.onstop = () => {
+      const a = document.createElement('a');
+      a.href = URL.createObjectURL(new Blob(mChunks, {type:'video/webm'}));
+      a.download = 'vlab-capture.webm'; a.click();
+    };
+    mRec.start(); S.recording = true;
+    lbl.textContent = 'Stop'; ind.style.display = 'flex';
+  } else {
+    mRec.stop(); S.recording = false;
+    lbl.textContent = 'Record'; ind.style.display = 'none';
+  }
+};
+
+document.getElementById('expBtn').onclick = () => {
+  const a = document.createElement('a');
+  a.download = 'vlab-frame.png';
+  a.href = OC.toDataURL('image/png');
+  a.click();
+};
+
+/* BOOT */
+window.addEventListener('load', initThree);
+</script>
+</body>
+</html>
