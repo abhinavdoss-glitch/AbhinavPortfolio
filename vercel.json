@@ -1,7 +1,8 @@
 {
-  "rewrites": [
-    { "source": "/jlooms/(.*)",      "destination": "/jlooms/index.html" },
-    { "source": "/techsparks/(.*)",  "destination": "/techsparks/index.html" },
-    { "source": "/(.*)",             "destination": "/index.html" }
+  "routes": [
+    { "handle": "filesystem" },
+    { "src": "/jlooms/(.*)", "dest": "/jlooms/index.html" },
+    { "src": "/techsparks/(.*)", "dest": "/techsparks/index.html" },
+    { "src": "/(.*)", "dest": "/index.html" }
   ]
 }

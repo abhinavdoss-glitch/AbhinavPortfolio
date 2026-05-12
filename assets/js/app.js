@@ -93,6 +93,13 @@
       if (el) el.classList.add('on');
       document.querySelectorAll(`[data-v="${id}"]`).forEach(b => b.classList.add('on'));
       curV = id;
+      // Lazy-load VisualLab iframe on first World tab visit
+      if (id === 'world') {
+        const frame = document.querySelector('#vw .vw-frame');
+        if (frame && frame.dataset.src && !frame.getAttribute('src')) {
+          frame.src = frame.dataset.src;
+        }
+      }
     }
 
     // Wire tab buttons + dock buttons
