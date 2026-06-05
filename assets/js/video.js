@@ -9,7 +9,7 @@
   var vpmCurVid = null;
   var vpmVid = null;   // the <video> element
   var vpmScrub = false;
-  var vpmVolDrag = false;
+  var vpmVolDrag = false;h
 
   /* ── wheel carousel state ── */
   var wheelProg = 0;
@@ -160,14 +160,14 @@
           /* preload metadata for cards within ±2 positions so they start faster */
           if (absX < 520 && !vid.src) {
             vid.src = card.getAttribute('data-url');
-            vid.preload = 'metadata';
+            vid.preload = 'none';
             vid.load();
           }
           /* play only the center card */
           if (absX < 150 && opacity > 0.9) {
             if (!vid.src) {
               vid.src = card.getAttribute('data-url');
-              vid.preload = 'auto';
+              vid.preload = 'metadata';
               vid.load();
             }
             if (vid.paused) vid.play().catch(function () {});
