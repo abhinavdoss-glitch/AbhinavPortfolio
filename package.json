@@ -1,0 +1,17 @@
+{
+  "name": "abhinav-portfolio",
+  "version": "1.0.0",
+  "description": "Portfolio website for Abhinav Doss Kaushal",
+  "private": true,
+  "scripts": {
+    "dev": "serve .",
+    "build": "echo 'Static HTML site - no build needed'",
+    "lint": "echo 'No linter configured'"
+  },
+  "dependencies": {
+    "@vercel/speed-insights": "^1.0.12"
+  },
+  "devDependencies": {
+    "serve": "^14.2.1"
+  }
+}
